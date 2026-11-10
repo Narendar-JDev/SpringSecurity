@@ -1,0 +1,66 @@
+package in.nkn.config;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
+import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
+import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
+import org.springframework.security.config.http.SessionCreationPolicy;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+
+import in.nkn.filter.AppFilter;
+import in.nkn.service.CustomerService;
+import lombok.SneakyThrows;
+
+@Configuration
+@EnableWebSecurity
+public class AppSecurityConfig {
+
+    @Autowired
+    private CustomerService customerService;
+
+    @Autowired
+    private AppFilter appFilter;   // add
+
+    @Bean
+    public BCryptPasswordEncoder pwdEncoder() {
+        return new BCryptPasswordEncoder();
+    }
+
+    @Bean
+    public DaoAuthenticationProvider authProvider() {
+        DaoAuthenticationProvider authProvider = new DaoAuthenticationProvider(customerService);
+        authProvider.setPasswordEncoder(pwdEncoder());
+        return authProvider;
+    }
+
+    @Bean
+    @SneakyThrows
+    public AuthenticationManager authManager(AuthenticationConfiguration config) {
+        return config.getAuthenticationManager();
+    }
+
+    @Bean
+    @SneakyThrows
+    public SecurityFilterChain security(HttpSecurity http) {
+
+        http.csrf(csrf -> csrf.disable());
+
+        http.authorizeHttpRequests(req -> req
+                .requestMatchers("/api/register", "/api/login").permitAll()
+                .anyRequest().authenticated());
+
+        // JWT me session nahi chahiye
+        http.sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS));
+
+        // yahi missing tha
+        http.addFilterBefore(appFilter, UsernamePasswordAuthenticationFilter.class);
+
+        return http.build();
+    }
+}
