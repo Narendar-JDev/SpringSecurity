@@ -1,0 +1,5 @@
+package in.nkn.service;
+
+public class jwtService {
+
+}
